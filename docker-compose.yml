@@ -18,22 +18,24 @@ services:
     restart: unless-stopped
     command:
       #- "--log.level=DEBUG"
+      - "--global.checkNewVersion=false"
       - "--global.sendAnonymousUsage=false"
       
       # Entrypoints
       - "--entrypoints.web.address=:3000"
       - "--entrypoints.websecure.address=:3443"
+      - "--entrypoints.websecure.http.tls=true"
+      - "--entrypoints.traefik.address=:9000"
       
       # Global Redirection (HTTP -> HTTPS)
       - "--entrypoints.web.http.redirections.entryPoint.to=websecure"
       - "--entrypoints.web.http.redirections.entryPoint.scheme=https"
 
-      # API & Dashboard
-      - "--api.dashboard=true"
+      # API
       - "--api.insecure=true"
 
       # Providers
-      - "--providers.docker=true"
+      - "--providers.docker"
       - "--providers.docker.exposedByDefault=false"
       - "--providers.docker.defaultRule=Host(`{{ .ContainerName }}.localhost`)"
       - "--providers.file.directory=/dynamic"
