@@ -1,4 +1,5 @@
 tls:
-  certificates: []
-    # - certFile: cert.pem
-    #   keyFile:  key.pem
+  # certificates: []
+  certificates: 
+    - certFile: ./certs/cert.pem
+      keyFile: ./certs/key.pem

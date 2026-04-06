@@ -18,54 +18,60 @@ services:
     restart: unless-stopped
     command:
       #- "--log.level=DEBUG"
+      - "--global.checkNewVersion=false"
       - "--global.sendAnonymousUsage=false"
-      - "--api.insecure=true"
-      - "--providers.docker"
-      - "--entrypoints.traefik.address=:9000"
+      
+      # Entrypoints
       - "--entrypoints.web.address=:3000"
-      - "--entryPoints.websecure.address=:3443"
+      - "--entrypoints.websecure.address=:3443"
       - "--entrypoints.websecure.http.tls=true"
-      - "--providers.docker.defaultRule=Host(`{{ .ContainerName }}.localhost`)"
+      - "--entrypoints.traefik.address=:9000"
+      
+      # Global Redirection (HTTP -> HTTPS)
+      - "--entrypoints.web.http.redirections.entryPoint.to=websecure"
+      - "--entrypoints.web.http.redirections.entryPoint.scheme=https"
+
+      # API
+      - "--api.insecure=true"
+
+      # Providers
+      - "--providers.docker"
       - "--providers.docker.exposedByDefault=false"
+      - "--providers.docker.defaultRule=Host(`{{ .ContainerName }}.localhost`)"
       - "--providers.file.directory=/dynamic"
       - "--providers.file.watch=true"
+      
+      # Logs
       - "--accesslog=true"
       - "--accesslog.fields.names.StartUTC=drop"
+
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - ./dynamic:/dynamic:ro
       - ./certs:/certs:ro
+    
     ports:
+      - "80:3000"  # Redirects to https://localhost:3443
       - "3000:3000"
+      - "443:3443"  # Redirects to http://localhost:3000
       - "3443:3443"
       - "9000:9000"
+    
+    healthcheck:
+      test: ["CMD", "traefik", "healthcheck", "--ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    
     logging:
       driver: "json-file"
       options:
         max-size: "100m"
         max-file: "3"
+
     labels:
       traefik.enable: "true"
 
-      # Redirect https://localhost:3000 -> https://localhost:3443
-      traefik.http.routers.web-https-catchall.rule: PathPrefix(`/`)
-      traefik.http.routers.web-https-catchall.entrypoints: web
-      traefik.http.routers.web-https-catchall.tls: "true"
-      traefik.http.routers.web-https-catchall.priority: "1"
-      traefik.http.routers.web-https-catchall.middlewares: redirect-to-https
-      traefik.http.middlewares.redirect-to-https.redirectscheme.scheme: https
-      traefik.http.middlewares.redirect-to-https.redirectscheme.port: "3443"
-
-      # Note: The following configuration is currently not supported due to Traefik's limitations.
-      # Note: You can't disable TLS on a single router when enabled globally as of v3.4
-      # Redirect http://localhost:3443 -> http://localhost:3000
-      # traefik.http.routers.web-http-catchall.rule: PathPrefix(`/`)
-      # traefik.http.routers.web-http-catchall.entrypoints: websecure
-      # traefik.http.routers.web-http-catchall.tls: "false"
-      # traefik.http.routers.web-http-catchall.priority: "1"
-      # traefik.http.routers.web-http-catchall.middlewares: redirect-to-http
-      # traefik.http.middlewares.redirect-to-http.redirectscheme.scheme: http
-      # traefik.http.middlewares.redirect-to-http.redirectscheme.port: "3000"
     environment:
       - TZ=${TZ:-Europe/Stockholm}
 
